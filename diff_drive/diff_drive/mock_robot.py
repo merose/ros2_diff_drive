@@ -1,4 +1,4 @@
-from __future__ import division
+"""Implement a mock robot."""
 
 
 class MotorTicks:

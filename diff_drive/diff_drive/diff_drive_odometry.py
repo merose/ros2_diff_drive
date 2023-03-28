@@ -1,5 +1,3 @@
-from math import sin, cos
-
 from diff_drive import odometry
 from diff_drive.util import BaseNode
 from diff_drive.pose import Pose
@@ -9,9 +7,7 @@ from diff_drive.transformations \
 from diff_drive_interfaces.msg import WheelTicks
 
 from geometry_msgs.msg import PoseWithCovarianceStamped
-from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import TransformStamped
-from geometry_msgs.msg import Twist
 
 from nav_msgs.msg import Odometry
 
@@ -110,7 +106,7 @@ class OdometryPublisher(BaseNode):
         pose.y = msg.pose.pose.position.y
         pose.theta = yaw
 
-        rospy.loginfo('Setting initial pose to %s', pose)
+        self.log_info(f'Setting initial pose to {pose}')
         self.odometry.setPose(pose)
         self.odometry.setTime(self.time_from_stamp(msg.header.stamp))
 

@@ -21,7 +21,10 @@ setup(
     entry_points={
         'console_scripts': [
             'sample = diff_drive.sample:main',
-            'diff_drive_odometry = diff_drive.diff_drive_odometry:main'
+            'diff_drive_odometry = diff_drive.diff_drive_odometry:main',
+            'diff_drive_mock_robot = diff_drive.diff_drive_mock_robot:main',
+            'diff_drive_controller = diff_drive.diff_drive_mock_controller:main',
+            'diff_drive_go_to_goal = diff_drive.diff_drive_mock_go_to_goal:main'
         ],
     },
 )
