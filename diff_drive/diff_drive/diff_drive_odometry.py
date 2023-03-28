@@ -6,6 +6,8 @@ from diff_drive.pose import Pose
 from diff_drive.transformations \
     import euler_from_quaternion, quaternion_from_euler
 
+from diff_drive_interfaces.msg import WheelTicks
+
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import Twist
@@ -18,15 +20,15 @@ from rclpy.node import Node
 
 class OdometryPublisher(BaseNode):
 
-    def __setup__(self, node):
-        self.node = node
+    def __init__(self, node):
+        super().__init__(node)
         self.odometry = odometry.Odometry()
         self.odometry_publisher = self.node.create_publisher(
             Odometry, 'odom', 10)
         self.node.create_subscription(WheelTicks, 'wheel_ticks',
-                                      self.on_wheel_ticks)
+                                      self.on_wheel_ticks, 10)
         self.node.create_subscription(PoseWithCovarianceStamped,
-                                      'initialpose', self.on_initial_pose)
+                                      'initialpose', self.on_initial_pose, 10)
 
     def get_node(self):
         return self.node
@@ -82,11 +84,8 @@ class OdometryPublisher(BaseNode):
 
 def main():
     rclpy.init()
-    node = Node('diff_drive_odometry')
-    publisher = OdometryPublisher(node)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    publisher = OdometryPublisher(Node('diff_drive_odometry'))
+    rclpy.spin(publisher.get_node())
 
 
 if __name__ == '__main__':
