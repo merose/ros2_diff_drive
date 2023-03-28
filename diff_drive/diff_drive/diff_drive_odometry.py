@@ -10,6 +10,7 @@ from diff_drive_interfaces.msg import WheelTicks
 
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Twist
 
 from nav_msgs.msg import Odometry
@@ -17,12 +18,36 @@ from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 
+from tf2_ros import TransformBroadcaster
+
 
 class OdometryPublisher(BaseNode):
 
     def __init__(self, node):
         super().__init__(node)
         self.odometry = odometry.Odometry()
+
+        self.declare_parameter('ticks_per_meter', value_type=float)
+        self.declare_parameter('wheel_separation', value_type=float)
+        self.declare_parameter('base_frame_id', default='base_link')
+        self.declare_parameter('odom_frame_id', default='odom')
+        self.declare_parameter('encoder_min', default=-32768)
+        self.declare_parameter('encoder_max', default=32767)
+
+        self.ticksPerMeter = self.get_double_parameter('ticks_per_meter')
+        self.wheelSeparation = self.get_double_parameter('wheel_separation')
+        self.baseFrameID = self.get_string_parameter('base_frame_id')
+        self.odomFrameID = self.get_string_parameter('odom_frame_id')
+        self.encoderMin = self.get_integer_parameter('encoder_min')
+        self.encoderMax = self.get_integer_parameter('encoder_max')
+
+        self.tf_broadcaster = TransformBroadcaster(self.node)
+
+        self.odometry.setWheelSeparation(self.wheelSeparation)
+        self.odometry.setTicksPerMeter(self.ticksPerMeter)
+        self.odometry.setEncoderRange(self.encoderMin, self.encoderMax)
+        self.odometry.setTime(self.get_time())
+
         self.odometry_publisher = self.node.create_publisher(
             Odometry, 'odom', 10)
         self.node.create_subscription(WheelTicks, 'wheel_ticks',
@@ -33,22 +58,34 @@ class OdometryPublisher(BaseNode):
     def get_node(self):
         return self.node
 
-    def publish_odometry(self, stamp):
-        self.odometry.updatePose(stamp)
-        now = rospy.get_rostime()
+    def on_wheel_ticks(self, msg):
+        stamp = msg.header.stamp
+        now = self.time_from_stamp(stamp)
+        self.odometry.updateLeftWheel(msg.left)
+        self.odometry.updateRightWheel(msg.right)
+        self.odometry.updatePose(now)
         pose = self.odometry.getPose()
+        self.log_debug(f'New pose: time={now} x={pose.x} y={pose.y} '
+                       + f'theta={pose.theta}')
 
         q = quaternion_from_euler(0, 0, pose.theta)
-        self.tfPub.sendTransform(
-            (pose.x, pose.y, 0),
-            (q[0], q[1], q[2], q[3]),
-            now,
-            self.baseFrameID,
-            self.odomFrameID
-        )
+        t = TransformStamped()
+        t.header.stamp = stamp
+        t.header.frame_id = self.odomFrameID
+        t.child_frame_id = self.baseFrameID
+
+        t.transform.translation.x = pose.x
+        t.transform.translation.y = pose.y
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = q[0]
+        t.transform.rotation.y = q[1]
+        t.transform.rotation.z = q[2]
+        t.transform.rotation.w = q[3]
+
+        self.tf_broadcaster.sendTransform(t)
 
         odom = Odometry()
-        odom.header.stamp = now
+        odom.header.stamp = stamp
         odom.header.frame_id = self.odomFrameID
         odom.child_frame_id = self.baseFrameID
         odom.pose.pose.position.x = pose.x
@@ -75,11 +112,7 @@ class OdometryPublisher(BaseNode):
 
         rospy.loginfo('Setting initial pose to %s', pose)
         self.odometry.setPose(pose)
-
-    def on_wheel_ticks(self, msg):
-        self.odometry.updateLeftWheel(msg.left)
-        self.odometry.updateRightWheel(msg.right)
-        self.publish_odometry(msg.header.stamp)
+        self.odometry.setTime(self.time_from_stamp(msg.header.stamp))
 
 
 def main():
