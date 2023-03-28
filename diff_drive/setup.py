@@ -20,6 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'sample = diff_drive.sample:main',
+            'diff_drive_odometry = diff_drive.diff_drive_odometry:main'
         ],
     },
 )
