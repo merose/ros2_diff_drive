@@ -5,13 +5,7 @@ launch:
 - arg: {name: use_sim_time, default: "false"}
 - arg: {name: ticks_per_meter, default: "10000.0"}
 - arg: {name: wheel_separation, default: "0.2"}
-
-- node:
-    name: robot_state_publisher
-    pkg: robot_state_publisher
-    exec: robot_state_publisher
-    param:
-    - {name: publish_frequence, value: 10.0}
+- arg: {name: urdf, default: "$(find-pkg-share diff_drive)/demo.urdf"}
 
 - node:
     name: diff_drive_controller
@@ -54,3 +48,9 @@ launch:
     - {name: linear_tolerance, value: 0.01 }
     - {name: angular_tolerance, value: 0.04 }
     - {name: forwardMovementOnly, value: false }
+
+- node:
+    name: rviz2
+    pkg: rviz2
+    exec: rviz2
+    args: "-d $(find-pkg-share diff_drive)/demo.rviz"

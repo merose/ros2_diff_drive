@@ -37,8 +37,8 @@ class GoToGoalNode(BaseNode):
             Bool, 'goal_achieved', 1)
 
         self.node.create_subscription(Odometry, 'odom', self.on_odometry, 10)
-        self.node.create_subscription(PoseStamped, 'move_base_simple/goal',
-                                      self.on_goal, 10)
+        self.node.create_subscription(PoseStamped, 'goal_pose', self.on_goal,
+                                      10)
 
         self.controller.set_constants(self.kP, self.kA, self.kB)
 
@@ -101,7 +101,8 @@ class GoToGoalNode(BaseNode):
         self.send_velocity(desired.xVel, desired.thetaVel)
 
         # Forget the goal if achieved.
-        if self.controller.at_goal(self.pose, self.goal):
+        if self.goal is not None \
+           and self.controller.at_goal(self.pose, self.goal):
             self.log_info('Goal achieved')
             self.goal = None
             msg = Bool()
@@ -118,10 +119,7 @@ class GoToGoalNode(BaseNode):
         self.pose = self.get_angle_pose(newPose.pose.pose)
 
     def on_goal(self, goal):
-        self.action_client.wait_for_server()
-        action_goal = GoToPoseGoal()
-        action_goal.pose.pose = goal.pose
-        self.action_client.send_goal(action_goal)
+        self.goal = self.get_angle_pose(goal.pose)
 
     def get_angle_pose(self, quaternion_pose):
         q = [quaternion_pose.orientation.x,
