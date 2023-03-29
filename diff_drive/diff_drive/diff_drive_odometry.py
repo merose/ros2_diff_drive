@@ -47,9 +47,6 @@ class OdometryPublisher(BaseNode):
         self.node.create_subscription(PoseWithCovarianceStamped,
                                       'initialpose', self.on_initial_pose, 10)
 
-    def get_node(self):
-        return self.node
-
     def on_wheel_ticks(self, msg):
         stamp = msg.header.stamp
         now = self.time_from_stamp(stamp)
