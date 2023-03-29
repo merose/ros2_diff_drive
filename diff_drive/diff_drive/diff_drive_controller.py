@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 
 from diff_drive.controller import Controller
+from diff_drive.util import BaseNode
 
-from diff_drive_interfaces import WheelTicks
+from diff_drive_interfaces.msg import WheelTicks
 
 from geometry_msgs.msg import Twist
 
@@ -10,7 +11,7 @@ import rclpy
 from rclpy.node import Node
 
 
-class ControllerNode:
+class ControllerNode(BaseNode):
 
     def __init__(self, node):
         super().__init__(node)
@@ -19,17 +20,14 @@ class ControllerNode:
         self.angularVelocity = 0.0
         self.lastTwistTime = self.get_time()
 
-        self.declare_parameter('ticks_per_meter', value_type=float)
-        self.declare_parameter('wheel_separation', value_type=float)
-        self.declare_parameter('max_motor_speed', value_type=float)
-        self.declare_parameter('rate', default=5.0)
-        self.declare_parameter('timeout', default=0.2)
-
-        self.ticksPerMeter = self.get_double_parameter('ticks_per_meter')
-        self.wheelSeparation = self.get_double_parameter('wheel_separation')
-        self.maxMotorSpeed = self.get_double_parameter('max_motor_speed')
-        self.rate = self.get_double_parameter('rate')
-        self.timeout = self.get_double_parameter('timeout')
+        self.ticksPerMeter = self.get_parameter('ticks_per_meter',
+                                                value_type=float)
+        self.wheelSeparation = self.get_parameter('wheel_separation',
+                                                  value_type=float)
+        self.maxMotorSpeed = self.get_parameter('max_motor_speed',
+                                                value_type=float)
+        self.rate = self.get_parameter('rate', default=5.0)
+        self.timeout = self.get_parameter('timeout', default=0.2)
 
         self.controller.setWheelSeparation(self.wheelSeparation)
         self.controller.setTicksPerMeter(self.ticksPerMeter)
@@ -38,7 +36,7 @@ class ControllerNode:
         self.pub = self.node.create_publisher(WheelTicks, 'wheel_desired_rates',
                                               10)
 
-        self.node.create_subscription(Twist, 'cmd_vel', self.on_twist)
+        self.node.create_subscription(Twist, 'cmd_vel', self.on_twist, 10)
 
         self.node.create_timer(1/self.rate, self.publish)
 

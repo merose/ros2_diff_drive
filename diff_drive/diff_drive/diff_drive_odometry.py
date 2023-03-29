@@ -23,19 +23,15 @@ class OdometryPublisher(BaseNode):
         super().__init__(node)
         self.odometry = odometry.Odometry()
 
-        self.declare_parameter('ticks_per_meter', value_type=float)
-        self.declare_parameter('wheel_separation', value_type=float)
-        self.declare_parameter('base_frame_id', default='base_link')
-        self.declare_parameter('odom_frame_id', default='odom')
-        self.declare_parameter('encoder_min', default=-32768)
-        self.declare_parameter('encoder_max', default=32767)
-
-        self.ticksPerMeter = self.get_double_parameter('ticks_per_meter')
-        self.wheelSeparation = self.get_double_parameter('wheel_separation')
-        self.baseFrameID = self.get_string_parameter('base_frame_id')
-        self.odomFrameID = self.get_string_parameter('odom_frame_id')
-        self.encoderMin = self.get_integer_parameter('encoder_min')
-        self.encoderMax = self.get_integer_parameter('encoder_max')
+        self.ticksPerMeter = self.get_parameter('ticks_per_meter',
+                                                value_type=float)
+        self.wheelSeparation = self.get_parameter('wheel_separation',
+                                                  value_type=float)
+        self.baseFrameID = self.get_parameter('base_frame_id',
+                                              default='base_link')
+        self.odomFrameID = self.get_parameter('odom_frame_id', default='odom')
+        self.encoderMin = self.get_parameter('encoder_min', default=-32768)
+        self.encoderMax = self.get_parameter('encoder_max', default=32767)
 
         self.tf_broadcaster = TransformBroadcaster(self.node)
 

@@ -7,13 +7,13 @@ class GoalController:
     """Find velocities necessary to drive toward a goal pose."""
 
     def __init__(self):
-        self.kP = 3
-        self.kA = 8
+        self.kP = 3.0
+        self.kA = 8.0
         self.kB = -1.5
         self.max_linear_speed = 1E9
-        self.min_linear_speed = 0
+        self.min_linear_speed = 0.0
         self.max_angular_speed = 1E9
-        self.min_angular_speed = 0
+        self.min_angular_speed = 0.0
         self.max_linear_acceleration = 1E9
         self.max_angular_acceleration = 1E9
         # 2.5cm
@@ -56,7 +56,7 @@ class GoalController:
 
     def get_goal_distance(self, cur, goal):
         if goal is None:
-            return 0
+            return 0.0
         diffX = cur.x - goal.x
         diffY = cur.y - goal.y
         return sqrt(diffX*diffX + diffY*diffY)
@@ -96,7 +96,7 @@ class GoalController:
         # rospy.loginfo('After normalization, a=%f b=%f', a, b)
 
         if abs(d) < self.linear_tolerance:
-            desired.xVel = 0
+            desired.xVel = 0.0
             desired.thetaVel = self.kB * theta
         else:
             desired.xVel = self.kP * d * direction

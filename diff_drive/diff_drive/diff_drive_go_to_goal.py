@@ -1,3 +1,5 @@
+from math import pi
+
 from geometry_msgs.msg import Twist, PoseStamped
 
 from nav_msgs.msg import Odometry
@@ -9,8 +11,8 @@ from diff_drive import pose
 from diff_drive.util import BaseNode
 from diff_drive.transformations import euler_from_quaternion
 
-from diff_drive_interfaces.msg import GoToPoseAction, GoToPoseGoal, \
-    GoToPoseResult
+#from diff_drive_interfaces.msg import GoToPoseAction, GoToPoseGoal, \
+#    GoToPoseResult
 
 import rclpy
 from rclpy.node import Node
@@ -19,18 +21,13 @@ from rclpy.node import Node
 class GoToGoalNode(BaseNode):
 
     def __init__(self, node):
-        super().init(node)
+        super().__init__(node)
         self.controller = goal_controller.GoalController()
-        self.declare_parameter('rate', 10.0)
-
-#        self.action_name = 'diff_drive_go_to_goal'
-#        self.action_server \
-#            = actionlib.SimpleActionServer(self.action_name, GoToPoseAction,
-#                                           execute_cb=self.on_execute,
-#                                           auto_start=False)
-
-#        self.action_client = actionlib.SimpleActionClient(
-#            'diff_drive_go_to_goal', GoToPoseAction)
+        self.rate = self.get_parameter('rate', default=10.0)
+        self.dT = 1 / self.rate
+        self.kP = self.get_parameter('kP', default=3.0)
+        self.kA = self.get_parameter('kA', default=8.0)
+        self.kB = self.get_parameter('kB', default=-1.5)
 
         self.dist_pub = self.node.create_publisher(
             Float32, 'distance_to_goal', 10)
@@ -39,72 +36,41 @@ class GoToGoalNode(BaseNode):
         self.goal_achieved_pub = self.node.create_publisher(
             Bool, 'goal_achieved', 1)
 
-        self.node.create_subscription(Odometry, 'odom', self.on_odometry)
+        self.node.create_subscription(Odometry, 'odom', self.on_odometry, 10)
         self.node.create_subscription(PoseStamped, 'move_base_simple/goal',
-                                      self.on_goal)
+                                      self.on_goal, 10)
 
-        rate = self.get_double_parameter('rate')
-        
-        self.rate = rospy.Rate(rate)
-
-        self.dT = 1 / rate
-
-        self.kP = rospy.get_param('~kP', 3.0)
-        self.kA = rospy.get_param('~kA', 8.0)
-        self.kB = rospy.get_param('~kB', -1.5)
         self.controller.set_constants(self.kP, self.kA, self.kB)
 
         self.controller.set_linear_tolerance(
-            rospy.get_param('~linear_tolerance', 0.05))
+            self.get_parameter('linear_tolerance', default=0.05))
         self.controller.set_angular_tolerance(
-            rospy.get_param('~angular_tolerance', 3/180*pi))
+            self.get_parameter('angular_tolerance', default=3/180*pi))
 
         self.controller.set_max_linear_speed(
-            rospy.get_param('~max_linear_speed', 0.2))
+            self.get_parameter('max_linear_speed', default=0.2))
         self.controller.set_min_linear_speed(
-            rospy.get_param('~min_linear_speed', 0))
+            self.get_parameter('min_linear_speed', default=0.0))
         self.controller.set_max_angular_speed(
-            rospy.get_param('~max_angular_speed', 1.0))
+            self.get_parameter('max_angular_speed', default=1.0))
         self.controller.set_min_angular_speed(
-            rospy.get_param('~min_angular_speed', 0))
+            self.get_parameter('min_angular_speed', default=0.0))
         self.controller.set_max_linear_acceleration(
-            rospy.get_param('~max_linear_acceleration', 0.1))
+            self.get_parameter('max_linear_acceleration', default=0.1))
         self.controller.set_max_angular_acceleration(
-            rospy.get_param('~max_angular_acceleration', 0.3))
+            self.get_parameter('max_angular_acceleration', default=0.3))
 
         # Set whether to allow movement backward. Backward movement is
         # safe if the robot can avoid obstacles while traveling in
         # reverse. We default to forward movement only since many
         # sensors are front-facing.
         self.controller.set_forward_movement_only(
-            rospy.get_param('~forwardMovementOnly', True))
+            self.get_parameter('forwardMovementOnly', default=True))
 
         self.init_pose()
         self.goal = None
 
         self.node.create_timer(1/self.rate, self.publish)
-#        self.action_server.start()
-
-    def on_execute(self, goal):
-        self.goal = self.get_angle_pose(goal.pose.pose)
-        rospy.loginfo('Goal: (%f,%f,%f)', self.goal.x, self.goal.y,
-                      self.goal.theta)
-
-        success = True
-        while not rospy.is_shutdown() and self.goal is not None:
-            # Allow client to preempt the goal.
-            if self.action_server.is_preempt_requested():
-                rospy.loginfo('Goal preempted')
-                self.send_velocity(0, 0)
-                self.action_server.set_preempted()
-                success = False
-                break
-            self.publish()
-            self.rate.sleep()
-
-        result = GoToPoseResult()
-        result.success = success
-        self.action_server.set_succeeded(result)
 
     def init_pose(self):
         self.pose = pose.Pose()
@@ -128,13 +94,15 @@ class GoToGoalNode(BaseNode):
         #         desired.xVel, desired.thetaVel)
 
         d = self.controller.get_goal_distance(self.pose, self.goal)
-        self.dist_pub.publish(d)
+        msg = Float32()
+        msg.data = float(d)
+        self.dist_pub.publish(msg)
 
         self.send_velocity(desired.xVel, desired.thetaVel)
 
         # Forget the goal if achieved.
         if self.controller.at_goal(self.pose, self.goal):
-            rospy.loginfo('Goal achieved')
+            self.log_info('Goal achieved')
             self.goal = None
             msg = Bool()
             msg.data = True
@@ -142,8 +110,8 @@ class GoToGoalNode(BaseNode):
 
     def send_velocity(self, xVel, thetaVel):
         twist = Twist()
-        twist.linear.x = xVel
-        twist.angular.z = thetaVel
+        twist.linear.x = float(xVel)
+        twist.angular.z = float(thetaVel)
         self.twist_pub.publish(twist)
 
     def on_odometry(self, newPose):
